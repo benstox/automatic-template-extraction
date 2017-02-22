@@ -1,0 +1,5 @@
+syntax: glob
+
+.DS_Store
+results.txt
+full_text/
