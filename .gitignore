@@ -1,5 +1,9 @@
 syntax: glob
 
 .DS_Store
-results.txt
+*.txt
+*.csv
 full_text/
+html/
+__pycache__/
+

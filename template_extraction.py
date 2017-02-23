@@ -155,15 +155,15 @@ def main(entity1, entity2):
 
         doc = get_spacy_text(text)  # process with spacy
         for entity in doc.ents:
-            entity.merge()  # merge any entities extracted into a single tokens
+            entity.merge()  # merge any entities extracted into a single token
 
         for sentence in doc.sents:  # search for pairs within each sentence
             entity1_instances = []
             entity2_instances = []
             for token in sentence:
-                if token.lower_ == entity1.lower():
+                if entity1.lower() in token.lower_:
                     entity1_instances.append(token)
-                if token.lower_ == entity2.lower():
+                if entity2.lower() in token.lower_:
                     entity2_instances.append(token)
 
             entity_pairs = itertools.product(entity1_instances, entity2_instances)
@@ -180,4 +180,4 @@ def main(entity1, entity2):
         thing[0].display()
 
 if __name__ == '__main__':
-    main("startup", "£")
+    main("Scottish Investment Bank", "£")
