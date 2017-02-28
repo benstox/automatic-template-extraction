@@ -6,4 +6,5 @@ syntax: glob
 full_text/
 html/
 __pycache__/
+.hg/
 

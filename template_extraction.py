@@ -180,4 +180,4 @@ def main(entity1, entity2):
         thing[0].display()
 
 if __name__ == '__main__':
-    main("Scottish Investment Bank", "£")
+    main("Balderton", "startup")
