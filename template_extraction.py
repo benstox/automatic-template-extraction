@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import itertools
+import os
 import spacy
-import subprocess
 
 nlp = spacy.load('en')
 PATH = "./full_text/"
@@ -129,19 +129,30 @@ class Relationship(object):
 
 def main(entity1, entity2):
     print("Entities:")
-    print(" -" + entity1)
-    print(" -" + entity2)
-    # This bash command returns all the files where the two entities occur in the same line, e.g.:
-    # find ./full_text -type f -print0 | xargs -0 grep -l -E "London.*Manchester|Manchester.*London"
+    print(" -" + ", ".join("{}: {}".format(k, v) for k, v in entity1.items()))
+    print(" -" + ", ".join("{}: {}".format(k, v) for k, v in entity2.items()))
 
-    cmd = 'find {} -type f -print0 | xargs -0 grep -l -i -E "{}.*{}|{}.*{}"'.format(
-        PATH, entity1, entity2, entity2, entity1)
-    try:
-        stdout = subprocess.check_output(cmd, shell=True)
-    except subprocess.CalledProcessError:
-        # raises this error if the grep finds no results
-        stdout = b""
-    filenames = [filename for filename in stdout.decode("utf-8").split("\n") if filename]
+    # Do these entities contain any names that could be used to filter
+    # the datafiles?
+    names = [entity["lower"] for entity in (entity1, entity2) if "lower" in entity]
+    # This bash command returns all the files where the two entities
+    # occur in the same line, e.g.:
+    # find ./full_text -type f -print0 | xargs -0 grep -l -E "London.*Manchester|Manchester.*London"
+    if len(names) == 2:
+        cmd = 'find {} -type f -print0 | xargs -0 grep -l -i -E "{}.*{}|{}.*{}"'.format(
+            PATH, names[0], names[1], names[1], names[0])
+    elif len(names) == 1:
+        cmd = 'find {} -type f -print0 | xargs -0 grep -l -i -E "{}"'.format(
+            PATH, names[0])
+    else:
+        cmd = 'find {} -type f'.format(PATH)
+
+    # run the command and save the output
+    os.system(cmd + " > stdout.txt")
+    with open("stdout.txt") as f:
+        stdout = f.read()
+
+    filenames = [filename for filename in stdout.split("\n") if filename]
 
     print("")
     print("Files found: {}.".format(len(filenames)))
@@ -156,14 +167,16 @@ def main(entity1, entity2):
         doc = get_spacy_text(text)  # process with spacy
         for entity in doc.ents:
             entity.merge()  # merge any entities extracted into a single token
+        # for chunk in doc.noun_chunks:
+        #     chunk.merge()
 
         for sentence in doc.sents:  # search for pairs within each sentence
             entity1_instances = []
             entity2_instances = []
             for token in sentence:
-                if entity1.lower() in token.lower_:
+                if all(v.lower() in getattr(token, k + "_").lower() for k, v in entity1.items()):
                     entity1_instances.append(token)
-                if entity2.lower() in token.lower_:
+                if all(v.lower() in getattr(token, k + "_").lower() for k, v in entity2.items()):
                     entity2_instances.append(token)
 
             entity_pairs = itertools.product(entity1_instances, entity2_instances)
@@ -180,4 +193,4 @@ def main(entity1, entity2):
         thing[0].display()
 
 if __name__ == '__main__':
-    main("Balderton", "startup")
+    main({"lower": "Balderton"}, {"lower": "company"})
