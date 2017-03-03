@@ -80,6 +80,13 @@ class Relationship(object):
             return(chain1[i1:][::-1], branch1, branch2)
 
     @property
+    def matching_pattern(self):
+        return({
+            "common_ancestor": {"pos": self.forking_node.pos_, "lemma": self.forking_node.lemma_},
+            "branch1": [{"pos": node.pos_, "dep": node.dep_} for node in self.branch1],
+            "branch2": [{"pos": node.pos_, "dep": node.dep_} for node in self.branch1]})
+
+    @property
     def longer_branch(self):
         if len(self.branch1) >= len(self.branch2):
             return(self.branch1)
@@ -127,7 +134,7 @@ class Relationship(object):
                     print("{:>13}{:>9}{:>6}".format(token1.orth_, token1.dep_, token1.pos_))
 
 
-def main(entity1, entity2):
+def search_files_for_relationships(entity1, entity2):
     print("Entities:")
     print(" -" + ", ".join("{}: {}".format(k, v) for k, v in entity1.items()))
     print(" -" + ", ".join("{}: {}".format(k, v) for k, v in entity2.items()))
@@ -152,7 +159,7 @@ def main(entity1, entity2):
     with open("stdout.txt") as f:
         stdout = f.read()
 
-    filenames = [filename for filename in stdout.split("\n") if filename]
+    filenames = [filename for filename in stdout[:-1].split("\n")]
 
     print("")
     print("Files found: {}.".format(len(filenames)))
@@ -182,6 +189,10 @@ def main(entity1, entity2):
             entity_pairs = itertools.product(entity1_instances, entity2_instances)
             relationships += [(Relationship(pair[0], pair[1]), sentence) for pair in entity_pairs]
 
+    return(relationships)
+
+
+def display_relationships(relationships):
     print("Relationships found: {}.".format(len(relationships)))
 
     for thing in relationships:
@@ -192,5 +203,67 @@ def main(entity1, entity2):
         print("".join(["-"] * 77))
         thing[0].display()
 
+
+def match_node_pattern(node, pattern):
+    """
+    Compare a node/token in a tree to a pattern dictionary:
+    e.g. {"lemma": "raise", "pos": "VERB"}
+    """
+    return(all(
+        getattr(node, attribute + "_") == value
+        for attribute, value in pattern.items()))
+
+
+def search_sentence_for_node(node, node_pattern):
+    """
+    Recursive function that searches through the tree
+    for a particular node and returns all found.
+    """
+    discovered = []
+
+    if match_node_pattern(node, node_pattern):
+        discovered.append(node)
+
+    for child in node.children:
+        discovered += search_sentence_for_node(child, node_pattern)
+
+    return(discovered)
+
+
+def follow_branch(node, branch):
+    """
+    Recursive function that follows a branch through the tree, checking
+    whether it matches.
+    """
+    count = 0
+    if branch:
+        matches = [child for child in node.children if match_node_pattern(child, branch[0])]
+        if not matches:
+            return(0)
+
+        count += sum(follow_branch(match, branch[1:]) for match in matches)
+        return(count)
+    else:
+        return(1)
+
+
+def search_sentence_for_pattern(sentence, pattern):
+    """
+    Determine whether a sentence contains a particular pattern and if it
+    does, how many times.
+    """
+    matches = 0
+    com_anc_matches = search_sentence_for_node(sentence.root, pattern["common_ancestor"])
+    for com_anc_match in com_anc_matches:
+        branch1_matches = follow_branch(com_anc_match, pattern["branch1"])
+        branch2_matches = follow_branch(com_anc_match, pattern["branch2"])
+        matches += branch1_matches * branch2_matches
+
+    return matches
+
+
 if __name__ == '__main__':
-    main({"lower": "Balderton"}, {"lower": "company"})
+    entity1 = {"lower": "Balderton"}
+    entity2 = {"lower": "startup"}
+    relationships = search_files_for_relationships(entity1, entity2)
+    display_relationships(relationships)
