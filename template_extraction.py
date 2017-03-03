@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import itertools
+import json
 import os
 import spacy
 
@@ -262,8 +263,16 @@ def search_sentence_for_pattern(sentence, pattern):
     return matches
 
 
+def write_matching_patterns_to_file(relationships):
+    patterns = [relationship[0].matching_pattern for relationship in relationships]
+    filename = "{}_{}.json".format(relationships[0][0].token1, relationships[0][0].token2)
+    with open(filename, "w") as f:
+        json.dump(patterns, f)
+
+
 if __name__ == '__main__':
     entity1 = {"lower": "Balderton"}
     entity2 = {"lower": "startup"}
     relationships = search_files_for_relationships(entity1, entity2)
     display_relationships(relationships)
+    write_matching_patterns_to_file(relationships)
